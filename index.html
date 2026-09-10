@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f7d6c">
+<title>血糖紀錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+  :root{
+    --bg:#eef1ef; --surface:#ffffff; --surface-2:#f4f6f4; --line:#e0e5e1;
+    --ink:#1e2926; --ink-soft:#5c6a64; --ink-faint:#8b978f;
+    --jade:#1f7d6c; --jade-deep:#155e51; --jade-soft:#e4f1ec;
+    --good:#2f9d67; --good-bg:#e6f4ec;
+    --warn:#c98a2a; --warn-bg:#f8eeda;
+    --high:#cf5a52; --high-bg:#f7e5e3;
+    --shadow:0 1px 2px rgba(20,50,40,.06),0 6px 20px rgba(20,50,40,.07);
+    --shadow-lift:0 8px 30px rgba(20,50,40,.16);
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#10140f; --surface:#1a201c; --surface-2:#212822; --line:#2c352e;
+      --ink:#e9efe9; --ink-soft:#a7b3ab; --ink-faint:#76837a;
+      --jade:#5cbfa6; --jade-deep:#8fd8c4; --jade-soft:#1c2e29;
+      --good:#5cc98a; --good-bg:#182a20;
+      --warn:#e0b45c; --warn-bg:#2c2617;
+      --high:#e2857d; --high-bg:#2e1e1c;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
+      --shadow-lift:0 10px 34px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#10140f; --surface:#1a201c; --surface-2:#212822; --line:#2c352e;
+    --ink:#e9efe9; --ink-soft:#a7b3ab; --ink-faint:#76837a;
+    --jade:#5cbfa6; --jade-deep:#8fd8c4; --jade-soft:#1c2e29;
+    --good:#5cc98a; --good-bg:#182a20;
+    --warn:#e0b45c; --warn-bg:#2c2617;
+    --high:#e2857d; --high-bg:#2e1e1c;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
+    --shadow-lift:0 10px 34px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans TC",system-ui,-apple-system,"Microsoft JhengHei",sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    display:flex; justify-content:center;
+  }
+  img{max-width:100%}
+  [hidden]{display:none !important}
+  .app{width:100%; max-width:460px; min-height:100vh; padding:22px 18px calc(130px + env(safe-area-inset-bottom)); position:relative}
+
+  .head{display:flex; align-items:flex-end; justify-content:space-between; margin:6px 2px 20px; gap:8px}
+  .head .titles h1{font-family:"Noto Serif TC",serif; font-weight:700; font-size:27px; margin:0; letter-spacing:.5px; line-height:1.2}
+  .head .titles p{margin:3px 0 0; color:var(--ink-soft); font-size:13px; letter-spacing:.4px}
+  .head .tools{display:flex; gap:8px; flex:none}
+  .iconbtn{background:var(--surface); border:1px solid var(--line); color:var(--ink-soft); width:38px; height:38px; border-radius:12px; font-size:16px; cursor:pointer; display:grid; place-items:center; box-shadow:var(--shadow)}
+  .iconbtn:active{transform:scale(.94)}
+
+  .banner{background:var(--warn-bg); color:var(--warn); border:1px solid var(--line); border-radius:12px; padding:9px 13px; font-size:12.5px; margin-bottom:14px; display:none; text-align:center; font-weight:500}
+
+  .today{background:linear-gradient(160deg,var(--surface),var(--surface-2)); border:1px solid var(--line); border-radius:22px; padding:20px 20px 18px; box-shadow:var(--shadow); position:relative; overflow:hidden; cursor:pointer}
+  .today .row1{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px}
+  .today .day{font-size:14px; color:var(--ink-soft); font-weight:500}
+  .today .status-pill{font-size:12.5px; font-weight:700; padding:4px 11px; border-radius:999px; letter-spacing:.3px}
+  .today .big{display:flex; align-items:baseline; gap:10px}
+  .today .big .num{font-size:60px; font-weight:900; letter-spacing:-1px; line-height:1; font-variant-numeric:tabular-nums}
+  .today .big .unit{font-size:15px; color:var(--ink-faint); font-weight:500}
+  .today .sub{margin-top:8px; font-size:13.5px; color:var(--ink-soft)}
+  .today .empty-cta .num{color:var(--ink-faint)}
+
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin:16px 0}
+  .stat{background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:11px 8px 10px; text-align:center}
+  .stat .v{font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1}
+  .stat .k{font-size:11px; color:var(--ink-faint); margin-top:3px; letter-spacing:.2px}
+
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between; margin:22px 4px 12px}
+  .sec-head h2{font-size:15px; margin:0; font-weight:700; letter-spacing:.5px}
+  .sec-head .hint{font-size:12px; color:var(--ink-faint)}
+
+  .chartcard{background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:14px 10px 8px; box-shadow:var(--shadow)}
+  svg{display:block; width:100%; height:auto}
+  .legend{display:flex; gap:14px; justify-content:center; padding:6px 0 4px; font-size:11.5px; color:var(--ink-soft)}
+  .legend span{display:inline-flex; align-items:center; gap:5px}
+  .legend i{width:9px; height:9px; border-radius:50%; display:inline-block}
+
+  .list{display:flex; flex-direction:column; gap:8px}
+  .item{display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:11px 14px 11px 12px; cursor:pointer; text-align:left; width:100%; font-family:inherit; color:inherit; transition:transform .08s ease}
+  .item:active{transform:scale(.99)}
+  .item .stripe{width:5px; align-self:stretch; border-radius:4px; flex:none; min-height:34px}
+  .item .date{width:74px; flex:none}
+  .item .date .md{font-size:16px; font-weight:700; font-variant-numeric:tabular-nums}
+  .item .date .wk{font-size:11.5px; color:var(--ink-faint)}
+  .item .vals{flex:1; display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline}
+  .item .vals .pair{display:flex; align-items:baseline; gap:5px}
+  .item .vals .lab{font-size:11px; color:var(--ink-faint)}
+  .item .vals .n{font-size:18px; font-weight:800; font-variant-numeric:tabular-nums}
+  .item .vals .note{flex-basis:100%; font-size:12px; color:var(--ink-soft); margin-top:1px}
+  .item .chev{color:var(--ink-faint); font-size:18px; flex:none}
+
+  .ref{background:var(--surface-2); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-top:24px}
+  .ref h3{margin:0 0 10px; font-size:13px; letter-spacing:.5px; color:var(--ink-soft)}
+  .reftable{display:flex; flex-direction:column; gap:9px}
+  .refrow{display:flex; align-items:center; gap:10px; font-size:12.5px}
+  .refrow .rl{width:58px; color:var(--ink-soft); flex:none}
+  .refrow .seg{flex:1; display:flex; gap:6px}
+  .refrow .seg b{flex:1; text-align:center; padding:4px 2px; border-radius:7px; font-weight:600; font-size:11.5px}
+  .disc{margin-top:14px; font-size:11.5px; color:var(--ink-faint); line-height:1.55; text-align:center}
+
+  .fab{position:fixed; bottom:calc(22px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:var(--jade); color:#fff; border:none; border-radius:999px; padding:15px 30px; font-size:16px; font-weight:700; font-family:inherit; box-shadow:var(--shadow-lift); cursor:pointer; display:flex; align-items:center; gap:8px; z-index:20; letter-spacing:1px}
+  .fab:active{transform:translateX(-50%) scale(.96)}
+  .fab .plus{font-size:20px; line-height:1; margin-top:-1px}
+
+  .scrim{position:fixed; inset:0; background:rgba(15,25,20,.42); opacity:0; pointer-events:none; transition:opacity .22s ease; z-index:30}
+  .scrim.open{opacity:1; pointer-events:auto}
+  .sheet{position:fixed; left:50%; bottom:0; transform:translate(-50%,100%); width:100%; max-width:460px; background:var(--surface); border-radius:22px 22px 0 0; padding:8px 20px calc(20px + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lift); transition:transform .26s cubic-bezier(.22,.61,.36,1); z-index:31; max-height:92vh; overflow-y:auto}
+  .sheet.open{transform:translate(-50%,0)}
+  .grab{width:38px; height:4px; border-radius:99px; background:var(--line); margin:6px auto 12px}
+  .sheet h2{font-size:19px; margin:0 0 4px; font-family:"Noto Serif TC",serif}
+  .sheet .sub{font-size:12.5px; color:var(--ink-faint); margin:0 0 16px}
+  .field{margin-bottom:15px}
+  .field label{display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:6px}
+  .field .with-unit{position:relative}
+  .field input, .field textarea{width:100%; font-family:inherit; font-size:17px; color:var(--ink); background:var(--surface-2); border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; outline:none; transition:border-color .15s}
+  .field input:focus, .field textarea:focus{border-color:var(--jade)}
+  .field .with-unit .u{position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--ink-faint); font-size:13px; pointer-events:none}
+  .field.two{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .field textarea{resize:none; min-height:52px; font-size:15px}
+  .livehint{font-size:12px; margin-top:6px; min-height:16px; font-weight:600}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px}
+  .btn{flex:1; font-family:inherit; font-size:16px; font-weight:700; padding:14px; border-radius:13px; border:none; cursor:pointer}
+  .btn.save{background:var(--jade); color:#fff; letter-spacing:1px}
+  .btn.save:disabled{opacity:.5}
+  .btn.save:active{transform:scale(.98)}
+  .btn.del{background:transparent; color:var(--high); border:1.5px solid var(--line); flex:none; width:56px; font-size:20px}
+
+  .menu-item{display:flex; align-items:center; gap:14px; width:100%; text-align:left; background:var(--surface-2); border:1px solid var(--line); border-radius:14px; padding:15px 16px; font-family:inherit; font-size:15.5px; color:var(--ink); cursor:pointer; margin-bottom:10px}
+  .menu-item:active{transform:scale(.99)}
+  .menu-item .mi-ic{font-size:20px}
+  .menu-item .mi-tx b{display:block; font-weight:700}
+  .menu-item .mi-tx span{font-size:12px; color:var(--ink-faint)}
+
+  .toast{position:fixed; bottom:calc(96px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--bg); padding:11px 20px; border-radius:999px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s; z-index:40; white-space:nowrap; max-width:90%}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="head">
+    <div class="titles">
+      <h1>血糖紀錄</h1>
+      <p>2026 · 每日追蹤</p>
+    </div>
+    <div class="tools">
+      <button class="iconbtn" id="backupBtn" aria-label="備份與還原">☁</button>
+      <button class="iconbtn" id="themebtn" aria-label="切換深淺色">◐</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner"></div>
+
+  <section class="today" id="todayCard" role="button" tabindex="0" aria-label="記錄今天血糖"></section>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="sec-head"><h2>空腹趨勢</h2><span class="hint" id="chartHint"></span></div>
+  <div class="chartcard">
+    <div id="chart"></div>
+    <div class="legend">
+      <span><i style="background:var(--good)"></i>正常</span>
+      <span><i style="background:var(--warn)"></i>偏高</span>
+      <span><i style="background:var(--high)"></i>過高</span>
+    </div>
+  </div>
+
+  <div class="sec-head"><h2>紀錄</h2><span class="hint" id="listHint"></span></div>
+  <div class="list" id="list"></div>
+
+  <div class="ref">
+    <h3>參考範圍（mg/dL，僅供對照）</h3>
+    <div class="reftable">
+      <div class="refrow"><span class="rl">空腹</span><span class="seg">
+        <b style="background:var(--good-bg);color:var(--good)">&lt;100 正常</b>
+        <b style="background:var(--warn-bg);color:var(--warn)">100–125</b>
+        <b style="background:var(--high-bg);color:var(--high)">≥126</b></span></div>
+      <div class="refrow"><span class="rl">餐後</span><span class="seg">
+        <b style="background:var(--good-bg);color:var(--good)">&lt;140 正常</b>
+        <b style="background:var(--warn-bg);color:var(--warn)">140–199</b>
+        <b style="background:var(--high-bg);color:var(--high)">≥200</b></span></div>
+      <div class="refrow"><span class="rl">HbA1c</span><span class="seg">
+        <b style="background:var(--good-bg);color:var(--good)">&lt;5.7% 正常</b>
+        <b style="background:var(--warn-bg);color:var(--warn)">5.7–6.4</b>
+        <b style="background:var(--high-bg);color:var(--high)">≥6.5</b></span></div>
+    </div>
+    <p class="disc">本 App 僅作血糖紀錄，不提供醫療診斷。<br>數值判讀、飲食與用藥請以醫師建議為準。</p>
+  </div>
+</div>
+
+<button class="fab" id="fab"><span class="plus">＋</span>記錄血糖</button>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- 輸入 sheet -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="grab"></div>
+  <h2 id="sheetTitle">記錄血糖</h2>
+  <p class="sub" id="sheetSub"></p>
+  <div class="field"><label for="fDate">日期</label><input type="date" id="fDate"></div>
+  <div class="field"><label for="fFasting">空腹血糖</label>
+    <div class="with-unit"><input type="number" id="fFasting" inputmode="decimal" placeholder="例：110" min="20" max="600"><span class="u">mg/dL</span></div>
+    <div class="livehint" id="fastingHint"></div></div>
+  <div class="field two">
+    <div><label for="fPost">餐後血糖</label><div class="with-unit"><input type="number" id="fPost" inputmode="decimal" placeholder="選填" min="20" max="600"><span class="u">mg/dL</span></div></div>
+    <div><label for="fPostTime">餐後時間</label><input type="time" id="fPostTime"></div>
+  </div>
+  <div class="livehint" id="postHint" style="margin-top:-8px;margin-bottom:12px"></div>
+  <div class="field"><label for="fHba1c">糖化血色素 HbA1c（抽血才填）</label>
+    <div class="with-unit"><input type="number" id="fHba1c" inputmode="decimal" step="0.1" placeholder="選填，例：5.8" min="3" max="20"><span class="u">%</span></div></div>
+  <div class="field"><label for="fNote">備註</label><textarea id="fNote" placeholder="飲食／運動／用藥／身體狀況（選填）"></textarea></div>
+  <div class="sheet-actions">
+    <button class="btn del" id="delBtn" title="刪除這筆" hidden>🗑</button>
+    <button class="btn save" id="saveBtn">儲存</button>
+  </div>
+</div>
+
+<!-- 備份 sheet -->
+<div class="sheet" id="backupSheet" role="dialog" aria-modal="true" aria-labelledby="backupTitle">
+  <div class="grab"></div>
+  <h2 id="backupTitle">備份與還原</h2>
+  <p class="sub">資料平時存在雲端（Firebase）。這裡可另外存一份備份檔到你的手機／Google 雲端，雙保險。</p>
+  <button class="menu-item" id="exportJson"><span class="mi-ic">⬇️</span><span class="mi-tx"><b>匯出備份檔</b><span>下載一份完整資料（.json），存去 Google 雲端最保險</span></span></button>
+  <button class="menu-item" id="exportCsv"><span class="mi-ic">📊</span><span class="mi-tx"><b>匯出 Excel 表（.csv）</b><span>可用 Excel／Google 試算表打開查看</span></span></button>
+  <button class="menu-item" id="importBtn"><span class="mi-ic">⬆️</span><span class="mi-tx"><b>從備份檔還原</b><span>選一個之前匯出的 .json，把資料寫回雲端</span></span></button>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  // ===== Firebase 設定（Winnie-bloodsugar）=====
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDp7ejbILsLaNDIyCZD3E7vpp-jk1N6B7A",
+    authDomain: "winnie-bloodsugar.firebaseapp.com",
+    projectId: "winnie-bloodsugar",
+    storageBucket: "winnie-bloodsugar.firebasestorage.app",
+    messagingSenderId: "202532680251",
+    appId: "1:202532680251:web:2b6f62ecc4146f67d8e21e"
+  };
+
+  // ===== 既有 22 筆（SUNNY 手寫紀錄，首次自動匯入雲端）=====
+  var SEED = [
+    {id:"2026-08-10",fasting:122},{id:"2026-08-14",fasting:111},
+    {id:"2026-08-17",fasting:121},{id:"2026-08-18",fasting:108},
+    {id:"2026-08-19",fasting:133,postMeal:115,postMealTime:"21:00"},
+    {id:"2026-08-20",fasting:109},{id:"2026-08-21",fasting:115},
+    {id:"2026-08-22",fasting:135},{id:"2026-08-26",fasting:114},
+    {id:"2026-08-27",fasting:117,postMeal:149,postMealTime:"17:30"},
+    {id:"2026-08-28",fasting:103},{id:"2026-08-29",fasting:107},
+    {id:"2026-08-30",fasting:110},{id:"2026-08-31",fasting:109},
+    {id:"2026-09-01",fasting:93},{id:"2026-09-02",fasting:108},
+    {id:"2026-09-04",fasting:119},{id:"2026-09-05",fasting:105},
+    {id:"2026-09-07",fasting:128},{id:"2026-09-08",fasting:112},
+    {id:"2026-09-09",fasting:98},{id:"2026-09-10",fasting:107}
+  ];
+  var WK=["日","一","二","三","四","五","六"];
+  var state={rows:[], db:null, ready:false, editingId:null};
+
+  // ===== helpers =====
+  function parseDate(id){var p=id.split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
+  function wk(id){return WK[parseDate(id).getDay()];}
+  function mdText(id){var p=id.split("-");return (+p[1])+"/"+(+p[2]);}
+  function todayId(){var d=new Date(),m=("0"+(d.getMonth()+1)).slice(-2),day=("0"+d.getDate()).slice(-2);return d.getFullYear()+"-"+m+"-"+day;}
+  function num(v){v=parseFloat(v);return isNaN(v)?null:v;}
+  function fastingLevel(v){if(v==null)return null;if(v<100)return"good";if(v<126)return"warn";return"high";}
+  function postLevel(v){if(v==null)return null;if(v<140)return"good";if(v<200)return"warn";return"high";}
+  function a1cLevel(v){if(v==null)return null;if(v<5.7)return"good";if(v<6.5)return"warn";return"high";}
+  var LEVEL_LABEL={good:"正常",warn:"偏高",high:"過高"};
+  var LEVEL_VAR={good:"var(--good)",warn:"var(--warn)",high:"var(--high)"};
+  var LEVEL_BG={good:"var(--good-bg)",warn:"var(--warn-bg)",high:"var(--high-bg)"};
+  function sorted(){return state.rows.slice().sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});}
+  function escapeHtml(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});}
+
+  // ===== 本機快取（即時載入＋離線保底）=====
+  function saveCache(rows){try{localStorage.setItem("bs_cache",JSON.stringify(rows));}catch(e){}}
+  function loadCache(){try{var s=localStorage.getItem("bs_cache");if(s)return JSON.parse(s);}catch(e){}return null;}
+
+  // ===== render =====
+  function render(){
+    var rows=sorted();
+    renderToday(rows); renderStats(rows); renderChart(rows); renderList(rows);
+    document.getElementById("listHint").textContent=rows.length?("共 "+rows.length+" 筆"):"";
+  }
+  function renderToday(rows){
+    var el=document.getElementById("todayCard"),tid=todayId(),today=null;
+    for(var i=0;i<rows.length;i++){if(rows[i].id===tid){today=rows[i];break;}}
+    var d=new Date(),dayLine=(d.getMonth()+1)+"月"+d.getDate()+"日 · 週"+WK[d.getDay()];
+    if(today&&today.fasting!=null){
+      var lv=fastingLevel(today.fasting);
+      el.innerHTML='<div class="row1"><span class="day">今天 '+dayLine+'</span>'+
+        '<span class="status-pill" style="color:'+LEVEL_VAR[lv]+';background:'+LEVEL_BG[lv]+'">'+LEVEL_LABEL[lv]+'</span></div>'+
+        '<div class="big"><span class="num" style="color:'+LEVEL_VAR[lv]+'">'+today.fasting+'</span><span class="unit">mg/dL 空腹</span></div>'+
+        '<div class="sub">'+(today.postMeal!=null?('餐後 '+today.postMeal+(today.postMealTime?'（'+today.postMealTime+'）':'')+' · '):'')+'點一下可修改</div>';
+    }else{
+      el.innerHTML='<div class="row1"><span class="day">今天 '+dayLine+'</span></div>'+
+        '<div class="big empty-cta"><span class="num">—</span><span class="unit">今天還沒量</span></div>'+
+        '<div class="sub">點一下這裡，記錄今天的空腹血糖 ↗</div>';
+    }
+  }
+  function avg(a){if(!a.length)return null;var s=0;for(var i=0;i<a.length;i++)s+=a[i];return s/a.length;}
+  function renderStats(rows){
+    var f=rows.filter(function(r){return r.fasting!=null;}).map(function(r){return r.fasting;});
+    var last7=rows.filter(function(r){return r.fasting!=null;}).slice(-7).map(function(r){return r.fasting;});
+    var mean=avg(f),mean7=avg(last7),mx=f.length?Math.max.apply(null,f):null;
+    var over=f.filter(function(v){return v>=126;}).length;
+    var cells=[{v:mean!=null?Math.round(mean):"—",k:"平均"},{v:mean7!=null?Math.round(mean7):"—",k:"近7天"},{v:mx!=null?mx:"—",k:"最高"},{v:over,k:"超標次數"}];
+    document.getElementById("stats").innerHTML=cells.map(function(c){return '<div class="stat"><div class="v">'+c.v+'</div><div class="k">'+c.k+'</div></div>';}).join("");
+  }
+  function renderChart(rows){
+    var data=rows.filter(function(r){return r.fasting!=null;}).slice(-30),host=document.getElementById("chart");
+    document.getElementById("chartHint").textContent="近 "+data.length+" 筆";
+    if(data.length<2){host.innerHTML='<div style="text-align:center;color:var(--ink-faint);font-size:13px;padding:30px 0">資料還太少，多記幾天就會出現趨勢線</div>';return;}
+    var W=420,H=190,padL=30,padR=12,padT=14,padB=26,iw=W-padL-padR,ih=H-padT-padB;
+    var vals=data.map(function(r){return r.fasting;}),lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);
+    lo=Math.min(lo,90);hi=Math.max(hi,130);lo=Math.floor((lo-8)/10)*10;hi=Math.ceil((hi+8)/10)*10;
+    function x(i){return padL+(data.length===1?iw/2:iw*i/(data.length-1));}
+    function y(v){return padT+ih*(1-(v-lo)/(hi-lo));}
+    var svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="空腹血糖趨勢圖">';
+    function band(v1,v2,c){var y1=y(Math.min(v2,hi)),y2=y(Math.max(v1,lo));if(y2<=y1)return"";return '<rect x="'+padL+'" y="'+y1+'" width="'+iw+'" height="'+(y2-y1)+'" fill="'+c+'" opacity="0.5"/>';}
+    svg+=band(lo,100,"var(--good-bg)")+band(100,126,"var(--warn-bg)")+band(126,hi,"var(--high-bg)");
+    for(var g=lo;g<=hi;g+=20){svg+='<line x1="'+padL+'" y1="'+y(g)+'" x2="'+(W-padR)+'" y2="'+y(g)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(padL-6)+'" y="'+(y(g)+4)+'" text-anchor="end" font-size="10" fill="var(--ink-faint)">'+g+'</text>';}
+    var dp="";data.forEach(function(r,i){dp+=(i?"L":"M")+x(i).toFixed(1)+" "+y(r.fasting).toFixed(1)+" ";});
+    svg+='<path d="'+dp+'" fill="none" stroke="var(--jade)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
+    data.forEach(function(r,i){svg+='<circle cx="'+x(i).toFixed(1)+'" cy="'+y(r.fasting).toFixed(1)+'" r="3.4" fill="'+LEVEL_VAR[fastingLevel(r.fasting)]+'" stroke="var(--surface)" stroke-width="1.5"/>';});
+    [0,Math.floor((data.length-1)/2),data.length-1].forEach(function(i){svg+='<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" fill="var(--ink-faint)">'+mdText(data[i].id)+'</text>';});
+    svg+='</svg>';host.innerHTML=svg;
+  }
+  function renderList(rows){
+    var host=document.getElementById("list");
+    if(!rows.length){host.innerHTML='<div style="text-align:center;color:var(--ink-faint);padding:24px 0;font-size:13px">還沒有紀錄，點下面的按鈕開始</div>';return;}
+    var html="";
+    for(var i=rows.length-1;i>=0;i--){
+      var r=rows[i],lv=fastingLevel(r.fasting),stripe=lv?LEVEL_VAR[lv]:"var(--line)",vals="";
+      if(r.fasting!=null)vals+='<span class="pair"><span class="lab">空腹</span><span class="n" style="color:'+LEVEL_VAR[lv]+'">'+r.fasting+'</span></span>';
+      if(r.postMeal!=null){var pl=postLevel(r.postMeal);vals+='<span class="pair"><span class="lab">餐後'+(r.postMealTime?" "+r.postMealTime:"")+'</span><span class="n" style="color:'+LEVEL_VAR[pl]+'">'+r.postMeal+'</span></span>';}
+      if(r.hba1c!=null){var al=a1cLevel(r.hba1c);vals+='<span class="pair"><span class="lab">HbA1c</span><span class="n" style="color:'+LEVEL_VAR[al]+'">'+r.hba1c+'%</span></span>';}
+      if(r.note)vals+='<span class="note">'+escapeHtml(r.note)+'</span>';
+      html+='<button class="item" data-id="'+r.id+'"><span class="stripe" style="background:'+stripe+'"></span>'+
+        '<span class="date"><div class="md">'+mdText(r.id)+'</div><div class="wk">週'+wk(r.id)+'</div></span>'+
+        '<span class="vals">'+vals+'</span><span class="chev">›</span></button>';
+    }
+    host.innerHTML=html;
+  }
+
+  // ===== sheet =====
+  var sheet=document.getElementById("sheet"),backupSheet=document.getElementById("backupSheet"),scrim=document.getElementById("scrim");
+  function openScrim(){scrim.classList.add("open");}
+  function closeAll(){scrim.classList.remove("open");sheet.classList.remove("open");backupSheet.classList.remove("open");}
+  function openSheet(id){
+    state.editingId=id||null;
+    var ex=null;if(id){for(var i=0;i<state.rows.length;i++){if(state.rows[i].id===id){ex=state.rows[i];break;}}}
+    document.getElementById("fDate").value=id||todayId();
+    document.getElementById("fFasting").value=ex&&ex.fasting!=null?ex.fasting:"";
+    document.getElementById("fPost").value=ex&&ex.postMeal!=null?ex.postMeal:"";
+    document.getElementById("fPostTime").value=ex&&ex.postMealTime?ex.postMealTime:"";
+    document.getElementById("fHba1c").value=ex&&ex.hba1c!=null?ex.hba1c:"";
+    document.getElementById("fNote").value=ex&&ex.note?ex.note:"";
+    document.getElementById("sheetTitle").textContent=ex?"修改紀錄":"記錄血糖";
+    document.getElementById("sheetSub").textContent=ex?(mdText(id)+" 週"+wk(id)+" 的紀錄"):"填空腹就好，其他選填";
+    document.getElementById("delBtn").hidden=!ex;
+    updateHints();
+    openScrim();sheet.classList.add("open");
+  }
+  function updateHints(){
+    var fv=num(document.getElementById("fFasting").value),fl=fastingLevel(fv),fh=document.getElementById("fastingHint");
+    if(fl){fh.textContent=LEVEL_LABEL[fl]+(fl==="good"?" ✓":"");fh.style.color=LEVEL_VAR[fl];}else{fh.textContent="";}
+    var pv=num(document.getElementById("fPost").value),pl=postLevel(pv),ph=document.getElementById("postHint");
+    if(pl){ph.textContent="餐後："+LEVEL_LABEL[pl];ph.style.color=LEVEL_VAR[pl];}else{ph.textContent="";}
+  }
+  document.getElementById("fFasting").addEventListener("input",updateHints);
+  document.getElementById("fPost").addEventListener("input",updateHints);
+  function toast(m){var t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove("show");},2000);}
+
+  function collectForm(){
+    var id=document.getElementById("fDate").value;if(!id)return null;
+    return {id:id,body:{date:id,weekday:wk(id),
+      fasting:num(document.getElementById("fFasting").value),
+      postMeal:num(document.getElementById("fPost").value),
+      postMealTime:document.getElementById("fPostTime").value||null,
+      hba1c:num(document.getElementById("fHba1c").value),
+      note:document.getElementById("fNote").value.trim()||null,
+      updatedAt:new Date().toISOString()}};
+  }
+  function applyLocal(id,body){
+    if(body===null){state.rows=state.rows.filter(function(r){return r.id!==id;});return;}
+    var f=false;for(var i=0;i<state.rows.length;i++){if(state.rows[i].id===id){state.rows[i]=Object.assign({id:id},body);f=true;break;}}
+    if(!f)state.rows.push(Object.assign({id:id},body));
+  }
+
+  document.getElementById("saveBtn").addEventListener("click",function(){
+    var f=collectForm();
+    if(!f){toast("請先選日期");return;}
+    if(f.body.fasting==null&&f.body.postMeal==null&&f.body.hba1c==null){toast("至少填一個血糖數值");return;}
+    var oldId=state.editingId;
+    if(oldId&&oldId!==f.id)applyLocal(oldId,null);
+    applyLocal(f.id,f.body);saveCache(state.rows);render();closeAll();
+    if(state.db){
+      var p;
+      if(oldId&&oldId!==f.id){p=state.db.collection("readings").doc(oldId).delete().then(function(){return state.db.collection("readings").doc(f.id).set(f.body);});}
+      else{p=state.db.collection("readings").doc(f.id).set(f.body);}
+      p.then(function(){toast("已儲存 ✓");}).catch(function(){toast("已存本機，連線後會自動同步");});
+    }else{toast("已存本機（目前離線）");}
+  });
+  document.getElementById("delBtn").addEventListener("click",function(){
+    var id=state.editingId;if(!id)return;
+    if(!confirm(mdText(id)+" 這筆紀錄要刪除嗎？"))return;
+    applyLocal(id,null);saveCache(state.rows);render();closeAll();
+    if(state.db){state.db.collection("readings").doc(id).delete().then(function(){toast("已刪除");}).catch(function(){toast("已刪本機，連線後同步");});}
+    else toast("已刪除（本機）");
+  });
+
+  // ===== 備份／還原 =====
+  function download(filename,text,type){
+    var blob=new Blob([text],{type:type||"application/json"}),url=URL.createObjectURL(blob);
+    var a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  }
+  document.getElementById("backupBtn").addEventListener("click",function(){openScrim();backupSheet.classList.add("open");});
+  document.getElementById("exportJson").addEventListener("click",function(){
+    var out={app:"血糖紀錄",exportedAt:new Date().toISOString(),rows:sorted()};
+    download("血糖備份_"+todayId()+".json",JSON.stringify(out,null,2));
+    toast("已下載備份檔");
+  });
+  document.getElementById("exportCsv").addEventListener("click",function(){
+    var rows=sorted(),lines=["日期,週,空腹,餐後,餐後時間,HbA1c,備註"];
+    rows.forEach(function(r){
+      lines.push([r.id,wk(r.id),r.fasting!=null?r.fasting:"",r.postMeal!=null?r.postMeal:"",r.postMealTime||"",r.hba1c!=null?r.hba1c:"",(r.note||"").replace(/,/g,"，").replace(/\n/g," ")].join(","));
+    });
+    download("血糖紀錄_"+todayId()+".csv","﻿"+lines.join("\r\n"),"text/csv;charset=utf-8");
+    toast("已下載 CSV");
+  });
+  document.getElementById("importBtn").addEventListener("click",function(){document.getElementById("importFile").click();});
+  document.getElementById("importFile").addEventListener("change",function(e){
+    var file=e.target.files[0];if(!file)return;
+    var reader=new FileReader();
+    reader.onload=function(){
+      var data;try{data=JSON.parse(reader.result);}catch(err){toast("檔案格式不對");return;}
+      var rows=data&&data.rows?data.rows:(Array.isArray(data)?data:null);
+      if(!rows||!rows.length){toast("備份檔沒有資料");return;}
+      if(!confirm("要用這個備份檔還原嗎？會把 "+rows.length+" 筆資料寫回雲端（同日期會覆蓋）。"))return;
+      var ok=0;
+      rows.forEach(function(r){
+        if(!r.id||!/^\d{4}-\d{2}-\d{2}$/.test(r.id))return;
+        var body={date:r.id,weekday:wk(r.id),fasting:r.fasting!=null?r.fasting:null,postMeal:r.postMeal!=null?r.postMeal:null,postMealTime:r.postMealTime||null,hba1c:r.hba1c!=null?r.hba1c:null,note:r.note||null,updatedAt:new Date().toISOString()};
+        applyLocal(r.id,body);ok++;
+        if(state.db)state.db.collection("readings").doc(r.id).set(body).catch(function(){});
+      });
+      saveCache(state.rows);render();closeAll();toast("已還原 "+ok+" 筆");
+    };
+    reader.readAsText(file);
+    e.target.value="";
+  });
+
+  // ===== 事件 =====
+  document.getElementById("fab").addEventListener("click",function(){openSheet(null);});
+  document.getElementById("todayCard").addEventListener("click",function(){openSheet(todayId());});
+  document.getElementById("todayCard").addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();openSheet(todayId());}});
+  document.getElementById("list").addEventListener("click",function(e){var b=e.target.closest(".item");if(b)openSheet(b.getAttribute("data-id"));});
+  scrim.addEventListener("click",closeAll);
+
+  // ===== 主題 =====
+  (function(){
+    var root=document.documentElement,saved=null;
+    try{saved=localStorage.getItem("bs_theme");}catch(e){}
+    if(saved)root.setAttribute("data-theme",saved);
+    document.getElementById("themebtn").addEventListener("click",function(){
+      var cur=root.getAttribute("data-theme"),isDark=cur?cur==="dark":window.matchMedia("(prefers-color-scheme: dark)").matches,next=isDark?"light":"dark";
+      root.setAttribute("data-theme",next);try{localStorage.setItem("bs_theme",next);}catch(e){}render();
+    });
+  })();
+
+  // ===== 初次載入：先用快取或 SEED 畫面（不空白）=====
+  var cache=loadCache();
+  state.rows=cache&&cache.length?cache:SEED.map(function(r){return Object.assign({},r);});
+  render();
+
+  // ===== 連 Firebase =====
+  function banner(msg){var b=document.getElementById("banner");if(msg){b.textContent=msg;b.style.display="block";}else{b.style.display="none";}}
+  function maybeSeed(){
+    var seeded=null;try{seeded=localStorage.getItem("bs_seeded");}catch(e){}
+    if(seeded)return;
+    var batch=state.db.batch();
+    SEED.forEach(function(r){batch.set(state.db.collection("readings").doc(r.id),{date:r.id,weekday:wk(r.id),fasting:r.fasting,postMeal:r.postMeal!=null?r.postMeal:null,postMealTime:r.postMealTime||null,hba1c:null,note:null,updatedAt:new Date().toISOString()});});
+    batch.commit().then(function(){try{localStorage.setItem("bs_seeded","1");}catch(e){}}).catch(function(){});
+  }
+  try{
+    if(typeof firebase==="undefined")throw new Error("no sdk");
+    firebase.initializeApp(FIREBASE_CONFIG);
+    state.db=firebase.firestore();
+    try{state.db.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
+    state.db.collection("readings").onSnapshot(function(snap){
+      banner(snap.metadata.fromCache?"離線中 · 顯示上次資料，連線後自動同步":"");
+      var rows=[];snap.forEach(function(doc){var v=doc.data()||{};rows.push({id:doc.id,fasting:v.fasting!=null?v.fasting:null,postMeal:v.postMeal!=null?v.postMeal:null,postMealTime:v.postMealTime||null,hba1c:v.hba1c!=null?v.hba1c:null,note:v.note||null});});
+      if(rows.length){state.rows=rows;saveCache(rows);render();}
+      else{if(!snap.metadata.fromCache)maybeSeed();}
+    },function(err){banner("雲端連線出問題，顯示的是本機備份");});
+  }catch(e){
+    state.db=null;banner("目前離線，顯示本機資料（可查看，暫時無法同步）");
+  }
+})();
+</script>
+</body>
+</html>
