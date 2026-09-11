@@ -497,6 +497,9 @@
 
   // ===== 連 Firebase =====
   function banner(msg){var b=document.getElementById("banner");if(msg){b.textContent=msg;b.style.display="block";}else{b.style.display="none";}}
+  function updateOnlineBanner(){ banner(navigator.onLine ? "" : "目前離線 · 已存本機，有網路會自動同步"); }
+  window.addEventListener("online", updateOnlineBanner);
+  window.addEventListener("offline", updateOnlineBanner);
   function maybeSeed(){
     var seeded=null;try{seeded=localStorage.getItem("bs_seeded");}catch(e){}
     if(seeded)return;
@@ -509,8 +512,9 @@
     firebase.initializeApp(FIREBASE_CONFIG);
     state.db=firebase.firestore();
     try{state.db.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
+    updateOnlineBanner();
     state.db.collection("readings").onSnapshot(function(snap){
-      banner(snap.metadata.fromCache?"離線中 · 顯示上次資料，連線後自動同步":"");
+      updateOnlineBanner();
       var rows=[];snap.forEach(function(doc){var v=doc.data()||{};rows.push({id:doc.id,fasting:v.fasting!=null?v.fasting:null,postMeal:v.postMeal!=null?v.postMeal:null,postMealTime:v.postMealTime||null,hba1c:v.hba1c!=null?v.hba1c:null,note:v.note||null});});
       if(rows.length){state.rows=rows;saveCache(rows);render();}
       else{if(!snap.metadata.fromCache)maybeSeed();}
