@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f7d6c">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
 <title>血糖紀錄</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,6 +147,14 @@
   .menu-item .mi-tx b{display:block; font-weight:700}
   .menu-item .mi-tx span{font-size:12px; color:var(--ink-faint)}
 
+  .gate{position:fixed; inset:0; z-index:80; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:24px}
+  .gate[hidden]{display:none}
+  .gatebox{width:100%; max-width:340px; text-align:center; background:var(--surface); border:1px solid var(--line); border-radius:22px; padding:28px 22px; box-shadow:var(--shadow)}
+  .gatebox h1{font-family:"Noto Serif TC",serif; font-size:24px; margin:0 0 8px; color:var(--jade-deep)}
+  .gatebox p{font-size:14px; color:var(--ink-soft); line-height:1.6; margin:0 0 18px}
+  .gatebox .gbtn{width:100%; font-family:inherit; font-size:16px; font-weight:700; padding:14px; border-radius:13px; border:none; background:var(--jade); color:#fff; cursor:pointer}
+  .gatebox .gsub{margin-top:10px; background:transparent; color:var(--ink-soft); border:1.5px solid var(--line)}
+  .gatebox .gmsg{margin-top:12px; font-size:13px; color:var(--high); min-height:18px; font-weight:600}
   .toast{position:fixed; bottom:calc(96px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(20px); background:var(--ink); color:var(--bg); padding:11px 20px; border-radius:999px; font-size:14px; font-weight:600; opacity:0; pointer-events:none; transition:all .25s; z-index:40; white-space:nowrap; max-width:90%}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
 
@@ -152,6 +162,15 @@
 </style>
 </head>
 <body>
+<div class="gate" id="gate">
+  <div class="gatebox">
+    <h1>血糖紀錄</h1>
+    <p id="gateText">這是私人紀錄，請先用 Google 帳號登入。</p>
+    <button class="gbtn" id="gateLogin">用 Google 帳號登入</button>
+    <button class="gbtn gsub" id="gateSwitch" hidden>換一個帳號</button>
+    <div class="gmsg" id="gateMsg"></div>
+  </div>
+</div>
 <div class="app">
   <header class="head">
     <div class="titles">
@@ -239,11 +258,13 @@
   <button class="menu-item" id="exportCsv"><span class="mi-ic">📊</span><span class="mi-tx"><b>匯出 Excel 表（.csv）</b><span>可用 Excel／Google 試算表打開查看</span></span></button>
   <button class="menu-item" id="importBtn"><span class="mi-ic">⬆️</span><span class="mi-tx"><b>從備份檔還原</b><span>選一個之前匯出的 .json，把資料寫回雲端</span></span></button>
   <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <button class="menu-item" id="logoutBtn"><span class="mi-ic">🔒</span><span class="mi-tx"><b>登出</b><span id="whoLine">目前登入的帳號</span></span></button>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 (function(){
@@ -259,23 +280,8 @@
     appId: "1:202532680251:web:2b6f62ecc4146f67d8e21e"
   };
 
-  // ===== 既有 22 筆（SUNNY 手寫紀錄，首次自動匯入雲端）=====
-  var SEED = [
-    {id:"2026-08-10",fasting:122},{id:"2026-08-14",fasting:111},
-    {id:"2026-08-17",fasting:121},{id:"2026-08-18",fasting:108},
-    {id:"2026-08-19",fasting:133,postMeal:115,postMealTime:"21:00"},
-    {id:"2026-08-20",fasting:109},{id:"2026-08-21",fasting:115},
-    {id:"2026-08-22",fasting:135},{id:"2026-08-26",fasting:114},
-    {id:"2026-08-27",fasting:117,postMeal:149,postMealTime:"17:30"},
-    {id:"2026-08-28",fasting:103},{id:"2026-08-29",fasting:107},
-    {id:"2026-08-30",fasting:110},{id:"2026-08-31",fasting:109},
-    {id:"2026-09-01",fasting:93},{id:"2026-09-02",fasting:108},
-    {id:"2026-09-04",fasting:119},{id:"2026-09-05",fasting:105},
-    {id:"2026-09-07",fasting:128},{id:"2026-09-08",fasting:112},
-    {id:"2026-09-09",fasting:98},{id:"2026-09-10",fasting:107}
-  ];
   var WK=["日","一","二","三","四","五","六"];
-  var state={rows:[], db:null, ready:false, editingId:null};
+  var state={rows:[], db:null, auth:null, user:null, unsub:null, ready:false, editingId:null};
 
   // ===== helpers =====
   function parseDate(id){var p=id.split("-");return new Date(+p[0],+p[1]-1,+p[2]);}
@@ -490,9 +496,9 @@
     });
   })();
 
-  // ===== 初次載入：先用快取或 SEED 畫面（不空白）=====
+  // ===== 初次載入：本機快取（畫面先被登入頁蓋住，登入後才看得到）=====
   var cache=loadCache();
-  state.rows=cache&&cache.length?cache:SEED.map(function(r){return Object.assign({},r);});
+  state.rows=cache&&cache.length?cache:[];
   render();
 
   // ===== 連 Firebase =====
@@ -500,27 +506,59 @@
   function updateOnlineBanner(){ banner(navigator.onLine ? "" : "目前離線 · 已存本機，有網路會自動同步"); }
   window.addEventListener("online", updateOnlineBanner);
   window.addEventListener("offline", updateOnlineBanner);
-  function maybeSeed(){
-    var seeded=null;try{seeded=localStorage.getItem("bs_seeded");}catch(e){}
-    if(seeded)return;
-    var batch=state.db.batch();
-    SEED.forEach(function(r){batch.set(state.db.collection("readings").doc(r.id),{date:r.id,weekday:wk(r.id),fasting:r.fasting,postMeal:r.postMeal!=null?r.postMeal:null,postMealTime:r.postMealTime||null,hba1c:null,note:null,updatedAt:new Date().toISOString()});});
-    batch.commit().then(function(){try{localStorage.setItem("bs_seeded","1");}catch(e){}}).catch(function(){});
+  // ===== 登入關卡：資料庫規則只允許指定的 Google 帳號，這裡只負責畫面 =====
+  function $(id){return document.getElementById(id);}
+  function showGate(text,msg,canSwitch){
+    $("gate").hidden=false;
+    $("gateText").textContent=text||"這是私人紀錄，請先用 Google 帳號登入。";
+    $("gateMsg").textContent=msg||"";
+    $("gateLogin").hidden=!!canSwitch; $("gateSwitch").hidden=!canSwitch;
   }
+  function hideGate(){ $("gate").hidden=true; }
+  function stopSync(){ if(state.unsub){try{state.unsub();}catch(e){} state.unsub=null;} }
+  function startSync(){
+    stopSync();
+    state.unsub=state.db.collection("readings").onSnapshot(function(snap){
+      updateOnlineBanner(); hideGate();
+      var rows=[];snap.forEach(function(doc){var v=doc.data()||{};rows.push({id:doc.id,fasting:v.fasting!=null?v.fasting:null,postMeal:v.postMeal!=null?v.postMeal:null,postMealTime:v.postMealTime||null,hba1c:v.hba1c!=null?v.hba1c:null,note:v.note||null});});
+      if(rows.length||!snap.metadata.fromCache){state.rows=rows;saveCache(rows);render();}
+    },function(err){
+      if(err&&err.code==="permission-denied"){
+        stopSync(); state.rows=[]; try{localStorage.removeItem("bs_cache");}catch(e){} render();
+        showGate("這個 Google 帳號（"+(state.user?state.user.email:"")+"）沒有權限看這份紀錄。","請換成已經登記的帳號。",true);
+      }else{ hideGate(); banner("雲端連線出問題，顯示的是本機備份"); }
+    });
+  }
+  function doLogin(){
+    if(!state.auth){ $("gateMsg").textContent="連不上網路，請稍後再試"; return; }
+    if(/Line\//i.test(navigator.userAgent)){ $("gateMsg").textContent="LINE 裡面不能用 Google 登入，請用 Safari 或 Chrome 開這一頁"; return; }
+    var p=new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({prompt:"select_account"});
+    state.auth.signInWithPopup(p).catch(function(e){ if(e&&e.code!=="auth/popup-closed-by-user") $("gateMsg").textContent="登入失敗："+(e.code||e.message); });
+  }
+  $("gateLogin").addEventListener("click",doLogin);
+  $("gateSwitch").addEventListener("click",function(){ state.auth.signOut().then(doLogin); });
+  $("logoutBtn").addEventListener("click",function(){
+    if(!confirm("要登出嗎？登出後這支手機要重新登入才看得到紀錄。"))return;
+    try{localStorage.removeItem("bs_cache");}catch(e){}
+    closeAll(); state.auth.signOut();
+  });
+
   try{
     if(typeof firebase==="undefined")throw new Error("no sdk");
     firebase.initializeApp(FIREBASE_CONFIG);
     state.db=firebase.firestore();
+    state.auth=firebase.auth();
     try{state.db.enablePersistence({synchronizeTabs:true}).catch(function(){});}catch(e){}
     updateOnlineBanner();
-    state.db.collection("readings").onSnapshot(function(snap){
-      updateOnlineBanner();
-      var rows=[];snap.forEach(function(doc){var v=doc.data()||{};rows.push({id:doc.id,fasting:v.fasting!=null?v.fasting:null,postMeal:v.postMeal!=null?v.postMeal:null,postMealTime:v.postMealTime||null,hba1c:v.hba1c!=null?v.hba1c:null,note:v.note||null});});
-      if(rows.length){state.rows=rows;saveCache(rows);render();}
-      else{if(!snap.metadata.fromCache)maybeSeed();}
-    },function(err){banner("雲端連線出問題，顯示的是本機備份");});
+    state.auth.onAuthStateChanged(function(u){
+      state.user=u||null;
+      if(u){ $("whoLine").textContent="目前登入："+u.email; startSync(); }
+      else{ stopSync(); state.rows=[]; render(); showGate(); }
+    });
   }catch(e){
-    state.db=null;banner("目前離線，顯示本機資料（可查看，暫時無法同步）");
+    state.db=null;
+    if(state.rows.length){ hideGate(); banner("目前離線，顯示本機資料（可查看，暫時無法同步）"); }
+    else showGate("連不上網路，請稍後再試。");
   }
 })();
 </script>
