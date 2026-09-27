@@ -1,5 +1,5 @@
 rules_version = '2';
-// 血糖紀錄 — Firestore 安全規則（2026-09-27）
+// winnie-bloodsugar 專案 — Firestore 安全規則（2026-09-27）：血糖紀錄＋健身記帳
 // 只有名單裡的 Google 帳號能讀寫。要加人：把 email 加進 allowed() 的清單。
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -17,6 +17,11 @@ service cloud.firestore {
       allow read: if allowed();
       allow write: if allowed()
         && date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    // 健身記帳（網頁在 GitHub sunnymath17play/gym）
+    match /gym/{doc} {
+      allow read, write: if allowed();
     }
 
     match /{document=**} { allow read, write: if false; }
